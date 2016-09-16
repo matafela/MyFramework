@@ -9,12 +9,14 @@ class FrameworkCore{
      * 根据路由类加载控制器和方法
      */
     static function run(){
+        //日志加载
+        \Framework\lib\Log::init();
+
+        //路由加载
         $route = new Route();
         $applicationName = $route->application;
         $controllerName = $route->controller;
         $action = $route->action;
-
-
         $controllerPath=ROOT.'/'.$applicationName.'/Controller/'.$controllerName.'Controller.class.php';
         if(is_file($controllerPath)){
             include $controllerPath;
@@ -22,6 +24,8 @@ class FrameworkCore{
             $Controller = new $fullClassName;
             //运行
             $Controller->$action();
+            //写入日志
+            \Framework\lib\Log::writeLog($applicationName.' '.$controllerName.' '.$action,'visit')  ;
         }else{
             throw new \Exception('找不到控制器'.$controllerName);
         }

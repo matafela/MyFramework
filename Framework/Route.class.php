@@ -1,5 +1,6 @@
 <?php
 namespace Framework;
+use \Framework\lib\LoadConfig as LoadConfig;
 /**
  * Class Route 路由类
  * 解析路由确定对应控制器和方法
@@ -11,9 +12,9 @@ class Route{
     public $action;
     public function __construct(){
         //默认情况
-        $this->application = 'Home';
-        $this->controller = 'index';
-        $this->action = 'index';
+        $this->application = LoadConfig::get('defaultPath','default_application');
+        $this->controller = LoadConfig::get('defaultPath','default_controller');
+        $this->action = LoadConfig::get('defaultPath','default_action');
 
         /*
          * 对目录深度有要求，尚待改进

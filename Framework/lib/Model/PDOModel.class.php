@@ -1,5 +1,6 @@
 <?php
-namespace Framework\lib;
+namespace Framework\lib\Model;
+use \Framework\lib\LoadConfig as LoadConfig;
 class PDOModel extends \PDO{
     private $dsn;
     private $username;
@@ -9,7 +10,7 @@ class PDOModel extends \PDO{
     private $where;     //存放where条件（以字符串形式）
     private $limit;     //存放limit语句（以字符串形式）
     private $order;     //存放order语句（以字符串形式）
-    private $field;     //存放field语句（以字符串形式）
+    private $field;     //存放select语句的field条件（以字符串形式）
     private $join;      //存放join语句（以字符串形式）
     private $data;      //存放用于提交/更新的数据（以键值对形式）
 
@@ -51,24 +52,34 @@ class PDOModel extends \PDO{
     }
 
     /**
-     * @param array $_option
+     * @param mixed $_option 字符串原生语句或者数组传值
      * @return $this
      */
     public function field($_option){
-        unset($this->field);//清空之前的where条件
+        unset($this->field);//清空之前的field条件
 
-        $this->field=$_option;
+        if(is_array($_option)){
+            $this->field = implode(',',$_option);
+        }else if(is_string($_option)){
+            $this->field=$_option;
+        }else{
+            throw new\Exception('使用非法参数调用field语句');
+        }
+
         return $this;   //用于链式调用
     }
 
     /**
-     * @param array $_option
+     * @param $begin
+     * @param null $num
      * @return $this
      */
-    public function limit($_option){
-        unset($this->limit);//清空之前的where条件
-
-        $this->limit=$_option;
+    public function limit($begin,$num=null){
+        unset($this->limit);//清空之前的limit条件
+        if(is_numeric($begin))
+            $this->limit=$begin;
+        if(is_numeric($num))
+            $this->limit.=",$num";
         return $this;   //用于链式调用
     }
 
@@ -84,6 +95,8 @@ class PDOModel extends \PDO{
     }
 
     /**
+     * 尚待改进
+     * 当前join语句有一个致命缺陷，除非使用一定的技巧，否则无法通过连续两次使用join来完成对两张表的join
      * @param array $_option
      * @return $this
      */
@@ -116,10 +129,11 @@ class PDOModel extends \PDO{
         foreach ($this->data as $_key => $_value)
             $re->bindValue(":$_key",$_value);
 
-        $re->execute();
 
         //插入完毕清空data
         unset($this->data);
+
+        return $re->execute();
     }
 
     /**
@@ -143,11 +157,12 @@ class PDOModel extends \PDO{
 
         foreach ($this->data as $_key => $_value)
             $re->bindValue(":$_key",$_value);
-        $re->execute();
 
         //更新完毕清空
         unset($this->data);
         unset($this->where);
+
+        return $re->execute();
     }
 
     /**
@@ -155,7 +170,7 @@ class PDOModel extends \PDO{
      * @param string $method
      * @return array|mixed|\PDOStatement
      */
-    function select($_table,$method="one"){
+    function select($_table,$method="all"){
         if(isset($this->field))
             $field=$this->field;
         else
@@ -171,8 +186,6 @@ class PDOModel extends \PDO{
         if(isset($this->limit))
             $instruct.=' LIMIT '.$this->limit;
 
-        preDump($instruct);
-        // echo $instruct;
         $record=$this->query($instruct);
 
         if($method==="one")
@@ -180,6 +193,7 @@ class PDOModel extends \PDO{
         else if($method==="all")
             $record=$record->fetchAll(\PDO::FETCH_ASSOC);
 
+        //select完毕清空
         unset($this->field);
         unset($this->where);
         unset($this->join);
