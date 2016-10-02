@@ -6,7 +6,7 @@ class PDOModel extends \PDO{
     private $username;
     private $passwd;
 
-    private $table;     //存放table语句（以字符串形式）     还没用上
+    private $table;     //存放table语句（以字符串形式）
     private $where;     //存放where条件（以字符串形式）
     private $limit;     //存放limit语句（以字符串形式）
     private $order;     //存放order语句（以字符串形式）
@@ -28,6 +28,24 @@ class PDOModel extends \PDO{
     }
 
     /**
+     * @param $_table
+     * @return $this
+     * @throws \Exception
+     */
+    public function table($_table){
+        unset($this->table);
+
+        if(is_array($_table)){
+            $this->table = ' `'.implode('`,`',$_table).'` ';
+        }else if(is_string($_table)){
+            $this->table = ' `'.$_table.'` ';
+        }else{
+            throw new \Exception('使用非法参数调用field语句');
+        }
+        return $this;
+    }
+
+    /**
      * 做最简单的数据过滤
      * @param array $_data
      * @return $this
@@ -41,19 +59,19 @@ class PDOModel extends \PDO{
     }
 
     /**
-     * @param array $_option
+     * @param string $_option
      * @return $this
      */
     public function where($_option){
         unset($this->where);//清空之前的where条件
 
-        $this->where=$_option;
+        $this->where=' WHERE '.$_option;
         return $this;   //用于链式调用
     }
 
     /**
      * @param mixed $_option 字符串原生语句或者数组传值
-     * @return $this
+     * @return mixed $this
      */
     public function field($_option){
         unset($this->field);//清空之前的field条件
@@ -77,7 +95,7 @@ class PDOModel extends \PDO{
     public function limit($begin,$num=null){
         unset($this->limit);//清空之前的limit条件
         if(is_numeric($begin))
-            $this->limit=$begin;
+            $this->limit=' LIMIT '.$begin;
         if(is_numeric($num))
             $this->limit.=",$num";
         return $this;   //用于链式调用
@@ -90,20 +108,37 @@ class PDOModel extends \PDO{
     public function order($_option){
         unset($this->order);//清空之前的where条件
 
-        $this->order=$_option;
+        $this->order=' ORDER BY '.$_option;
         return $this;   //用于链式调用
     }
 
     /**
      * 尚待改进
-     * 当前join语句有一个致命缺陷，除非使用一定的技巧，否则无法通过连续两次使用join来完成对两张表的join
-     * @param array $_option
+     * 还要区分 inner join、right join、left join、full join 等
+     * 需要支持数组调用来完成
+     * array(
+     *      array=(
+     *          数据表名字符串，
+     *          条件名字符串
+     *      )，
+     *      array=(
+     *          数据表明字符串，
+     *          条件名字符串
+     *      )
+     *      。。。
+     * )
+     * @param mixed $_option
      * @return $this
      */
     public function join($_option){
         unset($this->join);//清空之前的where条件
-
-        $this->join=$_option;
+        $this->join='';
+        if(is_array($_option)){
+            foreach($_option as $value)
+                $this->join.=' JOIN '.$value[0].' ON '.$value[1];
+        }else if(is_string($_option)){
+            $this->join=' JOIN '.$_option;
+        }
         return $this;   //用于链式调用
     }
 
@@ -112,7 +147,7 @@ class PDOModel extends \PDO{
      * @param $_tables :表名
      * @return bool
      */
-    public function insert($_tables){
+    public function insert(){
         //data为空则返回false
         if($this->data==null) return false;
 
@@ -123,7 +158,7 @@ class PDOModel extends \PDO{
         }
         $_field =substr($_field, 0, -1);
         $_valueField =substr($_valueField, 0, -1);
-        $instruct = "INSERT INTO `$_tables` ($_field) VALUES($_valueField)";
+        $instruct = "INSERT INTO $this->table ($_field) VALUES($_valueField)";
 
         $re=$this->prepare($instruct);
         foreach ($this->data as $_key => $_value)
@@ -141,9 +176,9 @@ class PDOModel extends \PDO{
      * @param $_tables
      * @return bool
      */
-    function update($_tables){
+    function update(){
         //data或者where为空则返回false
-        if($this->data==null||$this->where==null) return false;
+        if($this->data==null||$this->where==null||$this->table==null) return false;
 
         $_set='';
         foreach ($this->data as $key => $value)
@@ -151,8 +186,8 @@ class PDOModel extends \PDO{
 
         $_set =substr($_set, 0, -1);
 
-        $instruct="UPDATE `$_tables` SET $_set WHERE $this->where";
-        echo $instruct;
+        $instruct="UPDATE $this->table SET $_set $this->where";
+
         $re=$this->prepare($instruct);
 
         foreach ($this->data as $_key => $_value)
@@ -170,24 +205,26 @@ class PDOModel extends \PDO{
      * @param string $method
      * @return array|mixed|\PDOStatement
      */
-    function select($_table,$method="all"){
+    function select($method="all"){
+        if(!isset($this->table)) return false;
         if(isset($this->field))
             $field=$this->field;
         else
             $field='*';
-        $instruct = "SELECT $field FROM `$_table` ";
+        $instruct = "SELECT $field FROM $this->table ";
 
         if(isset($this->join))
-            $instruct.=' JOIN '.$this->join;
+            $instruct.=$this->join;
         if(isset($this->where))
-            $instruct.=' WHERE '.$this->where;
+            $instruct.=$this->where;
         if(isset($this->order))
-            $instruct.=' ORDER BY '.$this->order;
+            $instruct.=$this->order;
         if(isset($this->limit))
-            $instruct.=' LIMIT '.$this->limit;
+            $instruct.=$this->limit;
 
         $record=$this->query($instruct);
 
+        preDump($instruct);
         if($method==="one")
             $record=$record->fetch(\PDO::FETCH_ASSOC);
         else if($method==="all")
@@ -201,5 +238,21 @@ class PDOModel extends \PDO{
         unset($this->order);
 
         return $record;
+    }
+
+     public function delete($_table){
+         if($this->where==null)
+             return false;
+         $instruct = 'DELETE '.$this->table.' FROM '.$this->where;
+         $re = $this->prepare($instruct);
+         return $re->execute();
+     }
+
+     public function createView(){
+
+    }
+
+    public function dropView(){
+
     }
 }

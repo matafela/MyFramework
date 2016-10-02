@@ -1,0 +1,14 @@
+{
+  "name":"IMOOC PHP",
+  "description":"PHP MyFramework",
+  "type":"Framework",
+  "keywords":[
+    "PHP",
+    "PHP Framework"
+  ],
+  "require":{
+    "php":">=5.3",
+    "file/whoops":"*"
+  }
+
+}

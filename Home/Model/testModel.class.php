@@ -5,5 +5,4 @@ class testModel extends coreModel\PDOModel {
     public function re($table){
         return $this->limit(1,3)->select($table,'all');
     }
-
 }

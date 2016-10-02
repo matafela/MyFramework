@@ -11,6 +11,15 @@ class indexController{
      * 默认方法
      */
     public function index(){
-
+        $Model = new Model\testModel();
+        $Model->data(array(
+            'name'          =>'sdddd',
+            'content'       =>'asdffffasdfafasdf'
+        ))
+            ->table('table_1')
+            ->where('id=1')
+            ->update();
     }
+
+
 }
